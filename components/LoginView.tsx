@@ -1,85 +1,163 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { UserRole, UserProfile } from '../types';
 import { getAdminWhitelist } from '../services/storage';
+import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 interface LoginViewProps {
   onLogin: (user: UserProfile) => void;
 }
 
+// TODO: Replace with your actual Google Client ID from Google Cloud Console
+// https://console.cloud.google.com/apis/credentials
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
+  const handleCredentialResponse = (response: any) => {
+    try {
+      // Decode the JWT token
+      const idToken = response.credential;
+      const payload = decodeJwt(idToken);
 
-    setLoading(true);
+      if (!payload.email) {
+        throw new Error("Email not found in Google account.");
+      }
 
-    // Instant login without simulation delay
-    const admins = getAdminWhitelist();
-    const isAdmin = admins.includes(email);
+      // Check admin status
+      const admins = getAdminWhitelist();
+      const isAdmin = admins.includes(payload.email);
 
-    const user: UserProfile = {
-      email,
-      name: email.split('@')[0], // Mock name from email
-      role: isAdmin ? UserRole.ADMIN : UserRole.LEARNER,
-      avatarUrl: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=random`
-    };
+      const user: UserProfile = {
+        email: payload.email,
+        name: payload.name || payload.email.split('@')[0],
+        role: isAdmin ? UserRole.ADMIN : UserRole.LEARNER,
+        avatarUrl: payload.picture // Google profile picture
+      };
 
-    onLogin(user);
-    setLoading(false);
+      onLogin(user);
+    } catch (err) {
+      console.error("Login Error:", err);
+      setError("Failed to verify Google Account. Please try again.");
+    }
   };
+
+  useEffect(() => {
+    // Initialize Google Sign-In
+    if (window.google && window.google.accounts) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse,
+          auto_select: false, // Disable auto-select for better UX control
+          cancel_on_tap_outside: false
+        });
+
+        // Render the Google Sign-In button
+        const buttonContainer = document.getElementById('googleButtonDiv');
+        if (buttonContainer) {
+            window.google.accounts.id.renderButton(
+                buttonContainer,
+                { 
+                    theme: 'outline', 
+                    size: 'large', 
+                    width: '100%', // Responsive width
+                    text: 'signin_with',
+                    shape: 'pill',
+                }
+            );
+        }
+      } catch (e) {
+          console.error("GSI Error:", e);
+      }
+    } else {
+        // Retry mechanism if script hasn't loaded yet
+        const timer = setTimeout(() => {
+             // Trigger re-render to try again
+             setError(null); 
+        }, 500);
+        return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Helper to properly decode JWT with UTF-8 support
+  const decodeJwt = (token: string) => {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  };
+
+  const isConfigured = GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID_HERE");
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
-      <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl overflow-hidden">
-        <div className="bg-indigo-600 p-10 text-center">
-           <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <span className="font-bold text-4xl text-indigo-600">G</span>
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden">
+        <div className="bg-indigo-600 p-10 text-center relative overflow-hidden">
+           {/* Background decoration */}
+           <div className="absolute top-0 left-0 w-full h-full opacity-10">
+               <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle,white,transparent)]"></div>
            </div>
-           <h1 className="text-3xl font-bold text-white">GuessWork Learning</h1>
-           <p className="text-indigo-200 mt-3 text-lg">Sign in to continue</p>
+
+           <div className="relative z-10">
+                <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <span className="font-bold text-4xl text-indigo-600">G</span>
+                </div>
+                <h1 className="text-3xl font-bold text-white">GuessWork Learning</h1>
+                <p className="text-indigo-200 mt-3 text-lg font-medium">Institutional Access</p>
+           </div>
         </div>
         
         <div className="p-10">
-          <form onSubmit={handleLogin} className="space-y-8">
-             <div>
-                <label htmlFor="email" className="block text-base font-bold text-slate-700 mb-2">
-                  Google Account Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full px-6 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-lg"
-                />
+          <div className="space-y-6">
+             <div className="text-center mb-6">
+                 <p className="text-slate-600 text-lg">
+                     Please sign in with your authorized Google Account to continue.
+                 </p>
              </div>
 
-             <button
-               type="submit"
-               disabled={loading}
-               className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-4 transition-all shadow-sm text-lg"
-             >
-               {loading ? (
-                 <span>Signing in...</span>
-               ) : (
+             {!isConfigured ? (
+                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm">
+                     <div className="flex items-center gap-2 font-bold mb-2">
+                         <AlertTriangle className="w-5 h-5" />
+                         <span>Setup Required</span>
+                     </div>
+                     <p className="mb-2">
+                         To enable Google Sign-In, you must provide a valid <code>GOOGLE_CLIENT_ID</code> in <code>components/LoginView.tsx</code>.
+                     </p>
+                     <p>
+                         Obtain this from the Google Cloud Console.
+                     </p>
+                 </div>
+             ) : (
                  <>
-                   <svg className="w-6 h-6" viewBox="0 0 24 24">
-                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                   </svg>
-                   Sign in with Google
+                    {/* Google Button Target */}
+                    <div id="googleButtonDiv" className="flex justify-center h-[50px]"></div>
+
+                    {error && (
+                        <div className="bg-rose-50 text-rose-600 p-3 rounded-lg text-sm text-center font-medium border border-rose-100">
+                            {error}
+                        </div>
+                    )}
                  </>
-               )}
-             </button>
-          </form>
+             )}
+
+             <div className="pt-6 border-t border-slate-100 text-center">
+                 <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-1 rounded-full">
+                     <ShieldCheck className="w-4 h-4" />
+                     Secure Authentication
+                 </div>
+             </div>
+          </div>
         </div>
       </div>
     </div>
