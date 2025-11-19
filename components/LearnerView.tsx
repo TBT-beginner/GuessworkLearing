@@ -3,13 +3,55 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { MAX_ATTEMPTS, AttemptResult, Question, QuizSet } from '../types';
 import { submitAttempt } from '../services/quizService';
 import { getAttemptsBySet } from '../services/storage';
-import { AlertCircle, CheckCircle2, PlayCircle, RefreshCw, Award, ArrowLeft, Lightbulb, Languages } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { AlertCircle, CheckCircle2, PlayCircle, Award, ArrowLeft, Lightbulb, Languages } from 'lucide-react';
 
 interface LearnerViewProps {
   quizSet: QuizSet;
   onBack: () => void;
 }
+
+// Lightweight Markdown Parser Component
+const SimpleMarkdown: React.FC<{ content: string }> = ({ content }) => {
+  if (!content) return null;
+  
+  // Split by double newlines for paragraphs, or <br> tags
+  const paragraphs = content.split(/(\n\n|<br\s*\/?>)/g).filter(p => p.trim().length > 0 && !p.match(/^<br\s*\/?>$/));
+
+  const parseInline = (text: string) => {
+    // Split by bold (**text**) and italic (*text*) markers
+    // This regex captures the delimiters and content
+    const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-bold text-indigo-900">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+      }
+      return part;
+    });
+  };
+
+  return (
+    <div className="space-y-3 text-slate-800 text-lg leading-relaxed">
+      {paragraphs.map((paragraph, idx) => {
+        // Handle bullet lists roughly
+        if (paragraph.trim().startsWith('- ')) {
+            const items = paragraph.split('\n').filter(line => line.trim().startsWith('- '));
+            return (
+                <ul key={idx} className="list-disc list-inside mb-2 space-y-1">
+                    {items.map((item, i) => (
+                        <li key={i}>{parseInline(item.replace(/^- /, ''))}</li>
+                    ))}
+                </ul>
+            );
+        }
+        return <p key={idx}>{parseInline(paragraph)}</p>;
+      })}
+    </div>
+  );
+};
 
 export const LearnerView: React.FC<LearnerViewProps> = ({ quizSet, onBack }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -52,13 +94,6 @@ export const LearnerView: React.FC<LearnerViewProps> = ({ quizSet, onBack }) => 
 
   const toggleTranslation = (qId: string) => {
     setVisibleTranslations(prev => ({ ...prev, [qId]: !prev[qId] }));
-  };
-
-  // Helper to replace <br> with newlines for markdown
-  const formatText = (text: string | undefined) => {
-      if (!text) return '';
-      // Replace <br>, <br/>, <br /> with double newline for markdown paragraph break
-      return text.replace(/<br\s*\/?>/gi, '\n\n');
   };
 
   const handleSubmit = () => {
@@ -251,21 +286,7 @@ export const LearnerView: React.FC<LearnerViewProps> = ({ quizSet, onBack }) => 
                                    <span className="w-1.5 h-5 bg-indigo-500 rounded-full inline-block"></span>
                                    Explanation:
                                 </p>
-                                <div className="text-slate-800 text-lg leading-relaxed">
-                                    <ReactMarkdown
-                                        components={{
-                                            strong: ({node, ...props}) => <strong className="font-bold text-indigo-900" {...props} />,
-                                            em: ({node, ...props}) => <em className="italic" {...props} />,
-                                            p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                                            ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2" {...props} />,
-                                            ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2" {...props} />,
-                                            li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                                            a: ({node, ...props}) => <a className="text-indigo-600 underline hover:text-indigo-800" target="_blank" rel="noopener noreferrer" {...props} />,
-                                        }}
-                                    >
-                                        {formatText(q.explanation)}
-                                    </ReactMarkdown>
-                                </div>
+                                <SimpleMarkdown content={q.explanation} />
                              </div>
                         )}
                         </div>

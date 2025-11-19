@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAdminStatsForSet, getQuizSets, resetAdminStats, getAdminWhitelist, addAdmin, removeAdmin } from '../services/storage';
 import { AdminQuestionStats, QuizSet, UserProfile } from '../types';
 import { QuizEditor } from './QuizEditor';
@@ -36,11 +35,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
           const data = getAdminStatsForSet(selectedSetId);
           setStats(data);
       }
-  }, [selectedSetId, mode]); // Refresh on mode switch just in case
+  }, [selectedSetId, mode]);
 
   const handleResetData = () => {
       if(window.confirm("Are you sure you want to reset all results? This cannot be undone.")) {
-          resetAdminStats(); // This actually clears everything in localStorage results
+          resetAdminStats(); 
           window.location.reload(); 
       }
   }
@@ -60,16 +59,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
   }
 
   // Prepare data for chart
-  // We sort by question index (chronological order) for the chart to make it easier to find questions
   const chartData = [...stats]
     .sort((a, b) => a.originalIndex - b.originalIndex)
     .map(s => ({
+      id: s.questionId,
       name: `Q${s.originalIndex}`,
       attempts: s.totalAttempts,
       errors: s.errorCount,
       errorRate: s.totalAttempts > 0 ? (s.errorCount / s.totalAttempts) * 100 : 0,
       questionText: s.questionText,
     }));
+
+  const maxErrors = Math.max(...chartData.map(d => d.errors), 5); // Min 5 scale
 
   if (mode === 'CONTENT') {
       return <QuizEditor user={user} onBack={() => setMode('INSIGHTS')} />;
@@ -164,58 +165,50 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                {/* Chart Section */}
+                {/* Custom CSS Chart Section */}
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-                <h3 className="font-bold text-slate-700 text-xl mb-8 flex items-center gap-3">
-                    <FileBarChart className="w-6 h-6 text-indigo-600" />
-                    Error Frequency by Question Sequence
-                </h3>
-                {chartData.length > 0 ? (
-                     <div className="h-[450px] w-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                     <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                         <XAxis dataKey="name" stroke="#64748b" fontSize={14} tickLine={false} axisLine={false} />
-                         <YAxis stroke="#64748b" fontSize={14} tickLine={false} axisLine={false} />
-                         <Tooltip 
-                             cursor={{fill: '#f1f5f9'}}
-                             content={({ active, payload, label }) => {
-                                if (active && payload && payload.length) {
-                                  return (
-                                    <div className="bg-white p-4 border border-slate-200 shadow-xl rounded-xl max-w-xs z-50">
-                                      <p className="font-bold text-indigo-600 mb-1 text-base">{label}</p>
-                                      <p className="text-slate-700 text-sm mb-3 leading-snug">{payload[0].payload.questionText}</p>
-                                      <div className="flex justify-between text-sm font-medium text-slate-500 border-t border-slate-100 pt-2">
-                                          <span>Error Rate:</span>
-                                          <span className={`font-bold ${Number(payload[0].value) > 50 ? 'text-rose-500' : 'text-emerald-600'}`}>
-                                              {Number(payload[0].value).toFixed(1)}%
-                                          </span>
-                                      </div>
-                                      <div className="flex justify-between text-sm font-medium text-slate-500 mt-1">
-                                          <span>Count:</span>
-                                          <span>{payload[0].payload.errors} / {payload[0].payload.attempts}</span>
-                                      </div>
+                    <h3 className="font-bold text-slate-700 text-xl mb-8 flex items-center gap-3">
+                        <FileBarChart className="w-6 h-6 text-indigo-600" />
+                        Error Frequency by Question Sequence
+                    </h3>
+                    
+                    {chartData.length > 0 ? (
+                        <div className="w-full h-[400px] flex items-end justify-between gap-2 p-4 border-b border-l border-slate-200">
+                            {chartData.map((item) => {
+                                const heightPercentage = (item.errors / maxErrors) * 100;
+                                const isHighRisk = item.errorRate > 50;
+                                return (
+                                    <div key={item.id} className="flex-1 flex flex-col items-center group relative">
+                                        {/* Tooltip */}
+                                        <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs rounded-lg p-2 w-48 z-10 pointer-events-none">
+                                            <div className="font-bold">{item.name}</div>
+                                            <div>{item.questionText.substring(0, 50)}...</div>
+                                            <div className="mt-1 pt-1 border-t border-slate-600 flex justify-between">
+                                                <span>Errors:</span>
+                                                <span className="font-bold">{item.errors}/{item.attempts}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Bar */}
+                                        <div 
+                                            style={{ height: `${Math.max(heightPercentage, 4)}%` }} 
+                                            className={`w-full rounded-t-md transition-all duration-300 ${isHighRisk ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}
+                                        ></div>
+                                        
+                                        {/* Label */}
+                                        <div className="text-xs text-slate-500 font-bold mt-2">{item.name}</div>
                                     </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                         />
-                         <Bar dataKey="errors" fill="#6366f1" radius={[6, 6, 0, 0]}>
-                             {chartData.map((entry, index) => (
-                                 <Cell key={`cell-${index}`} fill={entry.errorRate > 50 ? '#f43f5e' : '#6366f1'} />
-                             ))}
-                         </Bar>
-                     </BarChart>
-                     </ResponsiveContainer>
-                 </div>
-                ) : (
-                    <div className="h-[450px] w-full flex items-center justify-center text-slate-400 text-lg">No attempts recorded yet.</div>
-                )}
-               
-                <div className="mt-6 text-sm text-center text-slate-400">
-                    Bars ordered by question number (Q1, Q2...). Red bars indicate >50% error rate.
-                </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="h-[400px] w-full flex items-center justify-center text-slate-400 text-lg bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                            No attempts recorded yet.
+                        </div>
+                    )}
+                    <div className="mt-6 text-sm text-center text-slate-400">
+                        Bars represent total error count. Red indicates >50% error rate. Hover for details.
+                    </div>
                 </div>
 
                 {/* Detailed List */}
