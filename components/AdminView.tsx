@@ -207,7 +207,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                         </div>
                     )}
                     <div className="mt-6 text-sm text-center text-slate-400">
-                        Bars represent total error count. Red indicates >50% error rate. Hover for details.
+                        Bars represent total error count. Red indicates &gt;50% error rate. Hover for details.
                     </div>
                 </div>
 
@@ -241,3 +241,4 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
     </div>
   );
 };
+    
