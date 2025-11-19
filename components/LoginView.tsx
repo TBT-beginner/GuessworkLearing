@@ -17,21 +17,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
     setLoading(true);
 
-    // Simulation delay
-    setTimeout(() => {
-      const admins = getAdminWhitelist();
-      const isAdmin = admins.includes(email);
+    // Instant login without simulation delay
+    const admins = getAdminWhitelist();
+    const isAdmin = admins.includes(email);
 
-      const user: UserProfile = {
-        email,
-        name: email.split('@')[0], // Mock name from email
-        role: isAdmin ? UserRole.ADMIN : UserRole.LEARNER,
-        avatarUrl: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=random`
-      };
+    const user: UserProfile = {
+      email,
+      name: email.split('@')[0], // Mock name from email
+      role: isAdmin ? UserRole.ADMIN : UserRole.LEARNER,
+      avatarUrl: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=random`
+    };
 
-      onLogin(user);
-      setLoading(false);
-    }, 800);
+    onLogin(user);
+    setLoading(false);
   };
 
   return (

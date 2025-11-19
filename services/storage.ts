@@ -1,7 +1,6 @@
 
 import { QuizSet, AttemptResult, UserProfile, AdminQuestionStats } from '../types';
 import { MOCK_QUESTIONS } from '../constants';
-import { v4 as uuidv4 } from 'uuid'; 
 
 // Simple ID generator since we can't import external libs easily in this environment
 const generateId = () => Math.random().toString(36).substring(2, 15);
