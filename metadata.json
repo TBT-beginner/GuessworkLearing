@@ -1,5 +1,5 @@
 {
   "name": "GuessWork Learning",
-  "description": "A deduction-based quiz platform where learners receive aggregated area feedback instead of direct answers to promote deep thinking, featuring AI-driven admin insights.",
+  "description": "A deduction-based quiz platform where learners receive aggregated area feedback instead of direct answers to promote deep thinking, featuring detailed admin insights.",
   "requestFramePermissions": []
 }

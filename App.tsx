@@ -83,7 +83,7 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="py-8 text-center text-slate-400 text-base">
-        <p>© 2024 GuessWork Learning. AI-Powered Educational Insights.</p>
+        <p>© 2024 GuessWork Learning. Educational Insights.</p>
       </footer>
     </div>
   );

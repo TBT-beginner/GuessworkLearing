@@ -3,10 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAdminStatsForSet, getQuizSets, resetAdminStats, getAdminWhitelist, addAdmin, removeAdmin } from '../services/storage';
 import { AdminQuestionStats, QuizSet, UserProfile } from '../types';
-import { generateAdminInsights } from '../services/geminiService';
 import { QuizEditor } from './QuizEditor';
-import { BrainCircuit, RefreshCw, FileBarChart, Loader2, Settings, BookOpen, UserPlus, X } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { RefreshCw, FileBarChart, Settings, BookOpen, UserPlus, X } from 'lucide-react';
 
 interface AdminViewProps {
     user: UserProfile;
@@ -19,8 +17,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
   const [selectedSetId, setSelectedSetId] = useState<string>('');
   const [stats, setStats] = useState<AdminQuestionStats[]>([]);
   const [quizSets, setQuizSets] = useState<QuizSet[]>([]);
-  const [insights, setInsights] = useState<string | null>(null);
-  const [loadingAI, setLoadingAI] = useState(false);
   
   // User Management State
   const [adminList, setAdminList] = useState<string[]>([]);
@@ -39,16 +35,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
       if (selectedSetId) {
           const data = getAdminStatsForSet(selectedSetId);
           setStats(data);
-          setInsights(null); // Reset insights when switching sets
       }
   }, [selectedSetId, mode]); // Refresh on mode switch just in case
-
-  const handleGenerateInsights = async () => {
-    setLoadingAI(true);
-    const result = await generateAdminInsights(stats);
-    setInsights(result);
-    setLoadingAI(false);
-  };
 
   const handleResetData = () => {
       if(window.confirm("Are you sure you want to reset all results? This cannot be undone.")) {
@@ -253,42 +241,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                         ))}
                         {stats.length === 0 && <p className="text-slate-400 text-center py-20 text-lg">No data available.</p>}
                     </div>
-                </div>
-            </div>
-
-            {/* AI Insights Section */}
-            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl shadow-xl overflow-hidden text-white">
-                <div className="p-10 border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-white/10 p-3 rounded-xl">
-                                <BrainCircuit className="w-8 h-8 text-indigo-300" />
-                            </div>
-                            <div>
-                                <h3 className="text-3xl font-bold">AI Performance Analysis</h3>
-                                <p className="text-indigo-200 text-base mt-1">Powered by Gemini 2.5 Flash</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleGenerateInsights}
-                            disabled={loadingAI || stats.reduce((acc, curr) => acc + curr.errorCount, 0) === 0}
-                            className="bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold transition-all flex items-center gap-3 shadow-lg shadow-indigo-900/20 text-lg"
-                        >
-                            {loadingAI ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Analyze Weaknesses'}
-                        </button>
-                    </div>
-                </div>
-                <div className="p-10 min-h-[250px] bg-white/5">
-                    {insights ? (
-                        <div className="prose prose-invert prose-lg max-w-none">
-                            <ReactMarkdown>{insights}</ReactMarkdown>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-6 py-10">
-                            <BrainCircuit className="w-16 h-16 opacity-20" />
-                            <p className="text-xl">Click "Analyze Weaknesses" to generate a teacher's report based on current statistics.</p>
-                        </div>
-                    )}
                 </div>
             </div>
         </>

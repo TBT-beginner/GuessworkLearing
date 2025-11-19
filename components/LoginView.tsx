@@ -60,9 +60,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   placeholder="name@example.com"
                   className="w-full px-6 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-lg"
                 />
-                <p className="text-sm text-slate-400 mt-3">
-                  * Try <b>tobita@kiryo.ac.jp</b> for Admin access.
-                </p>
              </div>
 
              <button
