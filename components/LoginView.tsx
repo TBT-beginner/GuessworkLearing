@@ -8,9 +8,14 @@ interface LoginViewProps {
   onLogin: (user: UserProfile) => void;
 }
 
-// TODO: Replace with your actual Google Client ID from Google Cloud Console
-// https://console.cloud.google.com/apis/credentials
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com";
+// ==================================================================================
+// [CONFIGURATION REQUIRED]
+// 1. Create a project at https://console.cloud.google.com/
+// 2. Go to Credentials > Create Credentials > OAuth Client ID > Web Application
+// 3. Add your current URL (see console.log) to "Authorized JavaScript origins"
+// 4. Paste the Client ID below:
+// ==================================================================================
+const GOOGLE_CLIENT_ID = "398706543242-le68k4bdk5cjajtmdet4rqj0vsunkucu.apps.googleusercontent.com";
 
 declare global {
   interface Window {
@@ -50,6 +55,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   };
 
   useEffect(() => {
+    // HELPER: Log the current origin to help user configure Google Cloud
+    console.log("⚠️ [Google Sign-In Setup] Add this URL to 'Authorized JavaScript origins':", window.location.origin);
+
     // Initialize Google Sign-In
     if (window.google && window.google.accounts) {
       try {
@@ -134,8 +142,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                      <p className="mb-2">
                          To enable Google Sign-In, you must provide a valid <code>GOOGLE_CLIENT_ID</code> in <code>components/LoginView.tsx</code>.
                      </p>
-                     <p>
-                         Obtain this from the Google Cloud Console.
+                     <p className="mt-2 font-mono text-xs bg-amber-100/50 p-2 rounded">
+                        Check console (F12) for the correct URL to whitelist in Google Cloud.
                      </p>
                  </div>
              ) : (
