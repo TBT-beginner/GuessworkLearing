@@ -35,14 +35,21 @@ export const QuizSetSelector: React.FC<QuizSetSelectorProps> = ({ onSelect }) =>
           return (
             <div 
               key={set.id} 
+              role="button"
+              tabIndex={0}
               className={`
-                group relative bg-white rounded-3xl p-8 border-2 transition-all duration-300 cursor-pointer hover:shadow-xl
+                group relative bg-white rounded-3xl p-8 border-2 transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1
                 ${isReviewLocked 
-                    ? 'border-slate-300 bg-slate-50/60 hover:border-rose-300' 
+                    ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300 ring-rose-100' 
                     : 'border-slate-200 hover:border-indigo-300'
                 }
               `}
               onClick={() => onSelect(set)}
+              onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                      onSelect(set);
+                  }
+              }}
             >
               <div className="flex justify-between items-start mb-6">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
@@ -66,7 +73,7 @@ export const QuizSetSelector: React.FC<QuizSetSelectorProps> = ({ onSelect }) =>
                 </div>
               </div>
 
-              <h3 className={`text-2xl font-bold mb-3 transition-colors ${isReviewLocked ? 'text-slate-600 group-hover:text-rose-600' : 'text-slate-800 group-hover:text-indigo-600'}`}>
+              <h3 className={`text-2xl font-bold mb-3 transition-colors ${isReviewLocked ? 'text-slate-800 group-hover:text-rose-700' : 'text-slate-800 group-hover:text-indigo-600'}`}>
                 {set.title}
               </h3>
               <p className="text-slate-500 text-lg mb-8 line-clamp-3 leading-relaxed">

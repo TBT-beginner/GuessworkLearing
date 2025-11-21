@@ -215,40 +215,45 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
             /* Stats Grid */
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 {/* Custom CSS Chart Section */}
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col">
                     <h3 className="font-bold text-slate-700 text-xl mb-8 flex items-center gap-3">
                         <FileBarChart className="w-6 h-6 text-indigo-600" />
                         Error Frequency by Question Sequence
                     </h3>
                     
                     {chartData.length > 0 ? (
-                        <div className="w-full h-[400px] flex items-end justify-between gap-2 p-4 border-b border-l border-slate-200">
-                            {chartData.map((item) => {
-                                const heightPercentage = (item.errors / maxErrors) * 100;
-                                const isHighRisk = item.errorRate > 50;
-                                return (
-                                    <div key={item.id} className="flex-1 flex flex-col items-center group relative">
-                                        {/* Tooltip */}
-                                        <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs rounded-lg p-2 w-48 z-10 pointer-events-none">
-                                            <div className="font-bold">{item.name}</div>
-                                            <div>{item.questionText.substring(0, 50)}...</div>
-                                            <div className="mt-1 pt-1 border-t border-slate-600 flex justify-between">
-                                                <span>Errors:</span>
-                                                <span className="font-bold">{item.errors}/{item.attempts}</span>
+                        <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
+                            <div 
+                                className="h-[400px] flex items-end gap-2 p-4 border-b border-l border-slate-200"
+                                style={{ minWidth: `${Math.max(100, chartData.length * 50)}px` }}
+                            >
+                                {chartData.map((item) => {
+                                    const heightPercentage = (item.errors / maxErrors) * 100;
+                                    const isHighRisk = item.errorRate > 50;
+                                    return (
+                                        <div key={item.id} className="flex-1 flex flex-col items-center group relative" style={{ minWidth: '30px' }}>
+                                            {/* Tooltip */}
+                                            <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs rounded-lg p-2 w-48 z-10 pointer-events-none left-1/2 -translate-x-1/2 shadow-lg">
+                                                <div className="font-bold">{item.name}</div>
+                                                <div>{item.questionText.substring(0, 50)}...</div>
+                                                <div className="mt-1 pt-1 border-t border-slate-600 flex justify-between">
+                                                    <span>Errors:</span>
+                                                    <span className="font-bold">{item.errors}/{item.attempts}</span>
+                                                </div>
                                             </div>
+                                            
+                                            {/* Bar */}
+                                            <div 
+                                                style={{ height: `${Math.max(heightPercentage, 4)}%` }} 
+                                                className={`w-full rounded-t-md transition-all duration-300 ${isHighRisk ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}
+                                            ></div>
+                                            
+                                            {/* Label */}
+                                            <div className="text-xs text-slate-500 font-bold mt-2 whitespace-nowrap">{item.name}</div>
                                         </div>
-                                        
-                                        {/* Bar */}
-                                        <div 
-                                            style={{ height: `${Math.max(heightPercentage, 4)}%` }} 
-                                            className={`w-full rounded-t-md transition-all duration-300 ${isHighRisk ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}
-                                        ></div>
-                                        
-                                        {/* Label */}
-                                        <div className="text-xs text-slate-500 font-bold mt-2">{item.name}</div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
                     ) : (
                         <div className="h-[400px] w-full flex items-center justify-center text-slate-400 text-lg bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
@@ -256,7 +261,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                         </div>
                     )}
                     <div className="mt-6 text-sm text-center text-slate-400">
-                        Bars represent total error count. Red indicates &gt;50% error rate. Hover for details.
+                        Bars represent total error count. Scroll horizontally if necessary. Red indicates &gt;50% error rate.
                     </div>
                 </div>
 
