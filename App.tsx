@@ -74,7 +74,7 @@ const App: React.FC = () => {
             <AdminView user={currentUser} />
         ) : (
             selectedQuizSet ? (
-                <LearnerView quizSet={selectedQuizSet} onBack={() => setSelectedQuizSet(null)} />
+                <LearnerView quizSet={selectedQuizSet} currentUser={currentUser} onBack={() => setSelectedQuizSet(null)} />
             ) : (
                 <QuizSetSelector onSelect={setSelectedQuizSet} />
             )

@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { QuizSet, Question, UserProfile } from '../types';
 import { getQuizSets, saveQuizSet, deleteQuizSet, generateUniqueId } from '../services/storage';
-import { Plus, Trash2, Save, Edit3, ArrowLeft, Upload, FileUp, HelpCircle, Download, X, Check, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Save, Edit3, ArrowLeft, Upload, FileUp, HelpCircle, Download, X, Check, AlertCircle, Lock } from 'lucide-react';
 
 interface QuizEditorProps {
   user: UserProfile;
@@ -39,6 +40,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ user, onBack }) => {
       questions: [],
       createdAt: Date.now(),
       createdBy: user.email,
+      passcode: '', // Default empty
     };
     setEditingSet(newSet);
   };
@@ -298,6 +300,19 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ user, onBack }) => {
                         className="text-lg text-slate-500 bg-transparent border-none focus:ring-0 p-0 w-full mt-2 placeholder-slate-300"
                         placeholder="Add a short description..."
                     />
+                    
+                    {/* New Passcode Field */}
+                    <div className="mt-4 flex items-center gap-3 bg-slate-50 p-2 rounded-lg inline-flex border border-slate-200">
+                        <Lock className="w-4 h-4 text-slate-400" />
+                        <input 
+                            type="text"
+                            value={editingSet.passcode || ''}
+                            onChange={(e) => setEditingSet({...editingSet, passcode: e.target.value})}
+                            placeholder="Teacher Code (Optional)"
+                            className="bg-transparent text-sm font-mono text-slate-600 focus:outline-none placeholder-slate-400 w-48"
+                        />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 ml-1">Code required for students to view answers after failing.</p>
                 </div>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">

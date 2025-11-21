@@ -1,12 +1,13 @@
 
-import { Question, AttemptResult, UserAnswer, AdminQuestionStats } from '../types';
+import { Question, AttemptResult, UserAnswer, AdminQuestionStats, UserProfile } from '../types';
 import { saveAttempt } from './storage';
 
 export const submitAttempt = (
   quizSetId: string,
   questions: Question[],
   answers: Record<string, string>,
-  attemptNumber: number
+  attemptNumber: number,
+  user: UserProfile
 ): AttemptResult => {
   const areaScores: Record<string, { correct: number; total: number }> = {};
   let isCompleteSuccess = true;
@@ -43,6 +44,8 @@ export const submitAttempt = (
     isCompleteSuccess,
     answers,
     timestamp: Date.now(),
+    userId: user.email,
+    userName: user.name,
   };
 
   // Persist result

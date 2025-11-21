@@ -34,6 +34,7 @@ export interface QuizSet {
   questions: Question[];
   createdAt: number;
   createdBy: string; // email
+  passcode?: string; // Code required to view answers after failing max attempts
 }
 
 export interface UserAnswer {
@@ -48,6 +49,8 @@ export interface AttemptResult {
   isCompleteSuccess: boolean;
   answers: Record<string, string>; // questionId -> optionId
   timestamp: number;
+  userId?: string;   // Added to track who made the attempt
+  userName?: string; // Added for easier display
 }
 
 export interface AdminQuestionStats {
