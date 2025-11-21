@@ -1,15 +1,24 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getAdminStatsForSet, getQuizSets, resetAdminStats, getAdminWhitelist, addAdmin, removeAdmin, getAttemptsBySet } from '../services/storage';
 import { AdminQuestionStats, QuizSet, UserProfile, AttemptResult } from '../types';
 import { QuizEditor } from './QuizEditor';
-import { RefreshCw, FileBarChart, Settings, BookOpen, UserPlus, X, History, Search, ChevronRight, AlertTriangle, CheckCircle2, User } from 'lucide-react';
+import { RefreshCw, FileBarChart, Settings, BookOpen, UserPlus, X, History, Search, ChevronRight, AlertTriangle, CheckCircle2, User, TrendingUp, AlertOctagon, Users } from 'lucide-react';
 
 interface AdminViewProps {
     user: UserProfile;
 }
 
 type AdminMode = 'INSIGHTS' | 'CONTENT' | 'USERS' | 'TRACE';
+
+interface StudentStat {
+    email: string;
+    name: string;
+    attempts: number;
+    passes: number;
+    averageScore: number;
+    lastActive: number;
+}
 
 export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
   const [mode, setMode] = useState<AdminMode>('INSIGHTS');
@@ -68,7 +77,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
       setAdminList(getAdminWhitelist());
   }
 
-  // Prepare data for chart
+  // --- Data Processing Helpers ---
+
+  // 1. Chart Data
   const chartData = [...stats]
     .sort((a, b) => a.originalIndex - b.originalIndex)
     .map(s => ({
@@ -82,7 +93,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
 
   const maxErrors = Math.max(...chartData.map(d => d.errors), 5); // Min 5 scale
 
-  // Filter attempts for Trace view
+  // 2. Trace Filter
   const filteredAttempts = allAttempts.filter(a => {
       const term = searchQuery.toLowerCase();
       const uName = a.userName?.toLowerCase() || '';
@@ -90,6 +101,70 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
       return uName.includes(term) || uEmail.includes(term);
   });
 
+  // 3. Student Aggregation (New Tool)
+  const studentStats = useMemo(() => {
+      const map: Record<string, StudentStat> = {};
+      allAttempts.forEach(a => {
+          const uid = a.userId || 'anonymous';
+          if (!map[uid]) {
+              map[uid] = {
+                  email: uid,
+                  name: a.userName || 'Anonymous',
+                  attempts: 0,
+                  passes: 0,
+                  averageScore: 0,
+                  lastActive: 0
+              };
+          }
+          
+          map[uid].attempts++;
+          if (a.isCompleteSuccess) map[uid].passes++;
+          map[uid].lastActive = Math.max(map[uid].lastActive, a.timestamp);
+          
+          // Calculate Score % for this attempt
+          let correct = 0;
+          let total = 0;
+          Object.values(a.areaScores).forEach((s: any) => {
+              correct += s.correct;
+              total += s.total;
+          });
+          const score = total > 0 ? (correct / total) * 100 : 0;
+          
+          // Running average approximation
+          const currentTotal = map[uid].averageScore * (map[uid].attempts - 1);
+          map[uid].averageScore = (currentTotal + score) / map[uid].attempts;
+      });
+      return Object.values(map).sort((a, b) => a.averageScore - b.averageScore); // Lowest scores first (At Risk)
+  }, [allAttempts]);
+
+  // 4. Distractor Analysis (New Tool)
+  const problematicQuestions = useMemo(() => {
+      return stats.filter(s => s.errorCount > 0).map(s => {
+          // Find the most chosen wrong answer
+          let topWrongOptId = '';
+          let maxCount = 0;
+          Object.entries(s.wrongOptionsDistribution).forEach(([optId, val]) => {
+              const count = val as number;
+              if (count > maxCount) {
+                  maxCount = count;
+                  topWrongOptId = optId;
+              }
+          });
+          
+          // If the top wrong answer accounts for > 40% of errors, it's a significant distractor
+          const isDistractor = s.errorCount > 2 && (maxCount / s.errorCount) > 0.4;
+          
+          return {
+              ...s,
+              topWrongOptId,
+              topWrongCount: maxCount,
+              isDistractor
+          };
+      }).filter(item => item.isDistractor).sort((a, b) => b.topWrongCount - a.topWrongCount);
+  }, [stats]);
+
+
+  // Helpers for text lookup
   const getQuestionText = (qId: string) => {
       const set = quizSets.find(s => s.id === selectedSetId);
       if (!set) return "Unknown Question";
@@ -129,19 +204,19 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                 onClick={() => setMode('INSIGHTS')}
                 className={`px-4 sm:px-6 py-3 rounded-lg text-base font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${mode === 'INSIGHTS' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-                <FileBarChart className="w-5 h-5" /> Insights
+                <TrendingUp className="w-5 h-5" /> Analysis
             </button>
             <button 
                 onClick={() => setMode('TRACE')}
                 className={`px-4 sm:px-6 py-3 rounded-lg text-base font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${mode === 'TRACE' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-                <History className="w-5 h-5" /> Student Logs
+                <History className="w-5 h-5" /> Logs
             </button>
             <button 
                 onClick={() => setMode('CONTENT')}
                 className="px-4 sm:px-6 py-3 rounded-lg text-base font-bold transition-colors flex items-center gap-2 text-slate-500 hover:text-slate-700 whitespace-nowrap"
             >
-                <BookOpen className="w-5 h-5" /> Manage Sets
+                <BookOpen className="w-5 h-5" /> Editor
             </button>
             <button 
                 onClick={() => setMode('USERS')}
@@ -205,16 +280,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                     onClick={handleResetData}
                     className="text-slate-500 hover:text-rose-600 flex items-center gap-2 text-base font-medium transition-colors"
                 >
-                    <RefreshCw className="w-5 h-5" /> Reset All User Data
+                    <RefreshCw className="w-5 h-5" /> Reset Data
                 </button>
             )}
         </div>
       )}
 
       {mode === 'INSIGHTS' && (
-            /* Stats Grid */
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                {/* Custom CSS Chart Section */}
+            <div className="space-y-8">
+                {/* 1. Graph Section */}
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col">
                     <h3 className="font-bold text-slate-700 text-xl mb-8 flex items-center gap-3">
                         <FileBarChart className="w-6 h-6 text-indigo-600" />
@@ -224,7 +298,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                     {chartData.length > 0 ? (
                         <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
                             <div 
-                                className="h-[400px] flex items-end gap-2 p-4 border-b border-l border-slate-200"
+                                className="h-[400px] flex items-end gap-2 p-4 border-b border-l border-slate-200 pt-10"
                                 style={{ minWidth: `${Math.max(100, chartData.length * 50)}px` }}
                             >
                                 {chartData.map((item) => {
@@ -242,11 +316,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                                                 </div>
                                             </div>
                                             
-                                            {/* Bar */}
+                                            {/* Bar with Number Label */}
                                             <div 
-                                                style={{ height: `${Math.max(heightPercentage, 4)}%` }} 
-                                                className={`w-full rounded-t-md transition-all duration-300 ${isHighRisk ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}
-                                            ></div>
+                                                style={{ height: `${Math.max(heightPercentage, 2)}%` }} 
+                                                className={`w-full rounded-t-md transition-all duration-300 relative ${isHighRisk ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}
+                                            >
+                                                {/* Explicit Error Count Label above bar */}
+                                                <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-600">
+                                                    {item.errors > 0 ? item.errors : ''}
+                                                </span>
+                                            </div>
                                             
                                             {/* Label */}
                                             <div className="text-xs text-slate-500 font-bold mt-2 whitespace-nowrap">{item.name}</div>
@@ -256,37 +335,99 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                             </div>
                         </div>
                     ) : (
-                        <div className="h-[400px] w-full flex items-center justify-center text-slate-400 text-lg bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                        <div className="h-[200px] w-full flex items-center justify-center text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                             No attempts recorded yet.
                         </div>
                     )}
-                    <div className="mt-6 text-sm text-center text-slate-400">
-                        Bars represent total error count. Scroll horizontally if necessary. Red indicates &gt;50% error rate.
+                    <div className="mt-4 text-sm text-center text-slate-400">
+                       Numbers above bars indicate total error count.
                     </div>
                 </div>
 
-                {/* Detailed List */}
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
-                    <h3 className="font-bold text-slate-700 text-xl mb-6">Problem Areas (Highest Errors First)</h3>
-                    <div className="flex-1 overflow-y-auto pr-4 space-y-4 custom-scrollbar">
-                        {stats.map((item) => (
-                            <div key={item.questionId} className="p-6 rounded-2xl bg-slate-50 border border-slate-100">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-black text-white bg-slate-400 px-2 py-1 rounded">Q{item.originalIndex}</span>
-                                        <span className="text-sm font-bold uppercase text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">{item.area}</span>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    {/* 2. Common Misconceptions (New Tool) */}
+                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col h-[500px]">
+                        <h3 className="font-bold text-slate-700 text-xl mb-6 flex items-center gap-3">
+                            <AlertOctagon className="w-6 h-6 text-rose-500" />
+                            Common Misconceptions
+                        </h3>
+                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                            {problematicQuestions.length > 0 ? (
+                                problematicQuestions.map((q) => (
+                                    <div key={q.questionId} className="p-5 rounded-xl bg-rose-50 border border-rose-100">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-xs font-bold bg-rose-200 text-rose-800 px-2 py-1 rounded">Q{q.originalIndex}</span>
+                                            <span className="text-xs font-bold text-rose-600">
+                                                {Math.round((q.topWrongCount / q.errorCount) * 100)}% of errors
+                                            </span>
+                                        </div>
+                                        <p className="text-slate-800 text-sm font-medium mb-3 line-clamp-2">{q.questionText}</p>
+                                        <div className="bg-white p-3 rounded-lg text-sm border border-rose-200">
+                                            <span className="text-slate-400 font-bold block text-xs uppercase mb-1">Students mistakenly chose:</span>
+                                            <span className="text-rose-700 font-semibold">{getOptionText(q.questionId, q.topWrongOptId)}</span>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-bold text-slate-500">{item.errorCount} / {item.totalAttempts} Errors</span>
+                                ))
+                            ) : (
+                                <div className="text-slate-400 text-center py-10">
+                                    <CheckCircle2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                                    <p>No specific distractors identified yet.</p>
                                 </div>
-                                <p className="text-lg text-slate-800 font-medium leading-snug">{item.questionText}</p>
-                                {Object.keys(item.wrongOptionsDistribution).length > 0 && (
-                                    <div className="mt-3 text-sm text-rose-500 font-medium">
-                                        Top mistake: Option {Object.entries(item.wrongOptionsDistribution).sort(([,a]: [string, number], [,b]: [string, number]) => b-a)[0][0]}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        {stats.length === 0 && <p className="text-slate-400 text-center py-20 text-lg">No data available.</p>}
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 3. Student Performance Matrix (New Tool) */}
+                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col h-[500px]">
+                        <h3 className="font-bold text-slate-700 text-xl mb-6 flex items-center gap-3">
+                            <Users className="w-6 h-6 text-indigo-600" />
+                            Student Performance Matrix
+                        </h3>
+                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 text-slate-500 font-bold uppercase sticky top-0">
+                                    <tr>
+                                        <th className="px-4 py-3 rounded-tl-lg">Student</th>
+                                        <th className="px-4 py-3">Avg Score</th>
+                                        <th className="px-4 py-3 rounded-tr-lg">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {studentStats.map((stat) => (
+                                        <tr key={stat.email} className="hover:bg-slate-50">
+                                            <td className="px-4 py-4">
+                                                <div className="font-bold text-slate-700">{stat.name}</div>
+                                                <div className="text-xs text-slate-400">{stat.email}</div>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className={`h-full rounded-full ${stat.averageScore > 70 ? 'bg-emerald-500' : stat.averageScore > 40 ? 'bg-amber-400' : 'bg-rose-500'}`} 
+                                                            style={{ width: `${stat.averageScore}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="font-bold text-slate-600">{Math.round(stat.averageScore)}%</span>
+                                                </div>
+                                                <div className="text-xs text-slate-400 mt-1">{stat.attempts} Attempts</div>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {stat.passes > 0 ? (
+                                                    <span className="inline-block px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md font-bold text-xs">Passed</span>
+                                                ) : (
+                                                    <span className="inline-block px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-bold text-xs">Reviewing</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {studentStats.length === 0 && (
+                                        <tr>
+                                            <td colSpan={3} className="text-center py-10 text-slate-400">No student data available.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
