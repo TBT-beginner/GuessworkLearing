@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { QuizSet, Question, UserProfile } from '../types';
 import { getQuizSets, saveQuizSet, deleteQuizSet, generateUniqueId } from '../services/storage';
-import { Plus, Trash2, Save, Edit3, ArrowLeft, Upload, FileUp, HelpCircle, Download, X, Check, AlertCircle, Lock } from 'lucide-react';
+import { Plus, Trash2, Save, Edit3, ArrowLeft, Upload, FileUp, HelpCircle, Download, X, Check, AlertCircle, Lock, FileType } from 'lucide-react';
 
 interface QuizEditorProps {
   user: UserProfile;
@@ -13,6 +13,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ user, onBack }) => {
   const [sets, setSets] = useState<QuizSet[]>([]);
   const [editingSet, setEditingSet] = useState<QuizSet | null>(null);
   const [showImportHelp, setShowImportHelp] = useState(false);
+  const [importEncoding, setImportEncoding] = useState('UTF-8');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -204,9 +205,10 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ user, onBack }) => {
              ...prev,
              questions: [...prev.questions, ...newQuestions]
           } : null);
-          alert(`Successfully imported ${successCount} questions.`);
+          setShowImportHelp(false);
+          alert(`Successfully imported ${successCount} questions using ${importEncoding} encoding.`);
         } else {
-          alert('No valid questions found. Please check the file format.');
+          alert('No valid questions found. Please check the file format or encoding.');
         }
 
       } catch (err) {
@@ -214,7 +216,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ user, onBack }) => {
         alert('Error parsing CSV file.');
       }
     };
-    reader.readAsText(file);
+    
+    // Use selected encoding
+    reader.readAsText(file, importEncoding);
   };
 
   const downloadTemplate = () => {
@@ -256,9 +260,45 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ user, onBack }) => {
                             <li><strong>Category:</strong> Group questions (e.g., "Grammar").</li>
                             <li><strong>Correct Answer:</strong> Use 'A', 'B', 'C', or 'D' (or 1-4).</li>
                             <li><strong>Hint/Translation:</strong> Optional columns at the end.</li>
-                            <li><strong>Encoding:</strong> Use "CSV UTF-8" for special characters.</li>
                         </ul>
                     </div>
+
+                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+                        <div className="flex items-center gap-2 mb-4 text-indigo-900 font-bold">
+                            <FileType className="w-5 h-5" /> File Encoding (Fix Character Issues)
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-6">
+                            <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${importEncoding === 'UTF-8' ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300' : 'bg-white border-slate-200 hover:border-indigo-200'}`}>
+                                <input 
+                                    type="radio" 
+                                    name="encoding" 
+                                    value="UTF-8" 
+                                    checked={importEncoding === 'UTF-8'} 
+                                    onChange={(e) => setImportEncoding(e.target.value)}
+                                    className="w-5 h-5 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <div>
+                                    <span className="block font-bold text-slate-800">UTF-8</span>
+                                    <span className="text-xs text-slate-500">Standard (Google Sheets, Modern Excel)</span>
+                                </div>
+                            </label>
+                            <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${importEncoding === 'Shift_JIS' ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300' : 'bg-white border-slate-200 hover:border-indigo-200'}`}>
+                                <input 
+                                    type="radio" 
+                                    name="encoding" 
+                                    value="Shift_JIS" 
+                                    checked={importEncoding === 'Shift_JIS'} 
+                                    onChange={(e) => setImportEncoding(e.target.value)}
+                                    className="w-5 h-5 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <div>
+                                    <span className="block font-bold text-slate-800">Shift-JIS</span>
+                                    <span className="text-xs text-slate-500">Japanese Excel (If text is garbled)</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row gap-4">
                         <button 
                             onClick={downloadTemplate}

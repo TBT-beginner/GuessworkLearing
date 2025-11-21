@@ -329,7 +329,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                                 // Calculate total correct
                                 let totalCorrect = 0;
                                 let totalQs = 0;
-                                Object.values(attempt.areaScores).forEach(score => {
+                                Object.values(attempt.areaScores).forEach((score: any) => {
                                     totalCorrect += score.correct;
                                     totalQs += score.total;
                                 });
@@ -396,8 +396,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                   
                   <div className="overflow-y-auto p-6 space-y-6">
                       {Object.entries(selectedAttempt.answers).map(([qId, selectedOptId], index) => {
+                          const sOptId = selectedOptId as string;
                           const correctOptId = getCorrectOptionId(qId);
-                          const isCorrect = selectedOptId === correctOptId;
+                          const isCorrect = sOptId === correctOptId;
                           
                           return (
                               <div key={qId} className={`p-4 rounded-xl border ${isCorrect ? 'border-emerald-100 bg-emerald-50/30' : 'border-rose-100 bg-rose-50/30'}`}>
@@ -412,7 +413,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ user }) => {
                                       <div className="flex items-center gap-2">
                                           <span className="text-slate-500 font-bold w-20">User Chose:</span>
                                           <span className={`px-2 py-1 rounded font-medium ${isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                                              {getOptionText(qId, selectedOptId)}
+                                              {getOptionText(qId, sOptId)}
                                           </span>
                                           {!isCorrect && <AlertTriangle className="w-4 h-4 text-rose-500" />}
                                       </div>
